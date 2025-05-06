@@ -9,7 +9,11 @@ app = Flask(__name__)
 line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
-vocab_counter = {}
+# 髒話清單
+profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障"]
+
+# 髒話次數記錄：{ user_id: {"name": 暱稱, "count": 次數} }
+profanity_counter = {}
 
 @app.route("/")
 def index():
@@ -30,19 +34,33 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
+    user_id = event.source.user_id
 
+    # 嘗試取得暱稱
+    try:
+        profile = line_bot_api.get_profile(user_id)
+        display_name = profile.display_name
+    except:
+        display_name = "未知使用者"
+
+    # 處理統計指令
     if text == "!統計":
-        if not vocab_counter:
+        if not profanity_counter:
             reply = "目前沒有紀錄"
         else:
-            lines = [f"{word}: {count}" for word, count in vocab_counter.items()]
-            reply = "\n".join(lines)
+            lines = [f"{data['name']}: {data['count']} 次" for data in profanity_counter.values()]
+            reply = "髒話使用統計：\n" + "\n".join(lines)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    words = text.split()
-    for word in words:
-        vocab_counter[word] = vocab_counter.get(word, 0) + 1
+    # 偵測髒話
+    if any(word in text for word in profanities):
+        if user_id not in profanity_counter:
+            profanity_counter[user_id] = {"name": display_name, "count": 1}
+        else:
+            profanity_counter[user_id]["count"] += 1
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="不要說髒話！"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
