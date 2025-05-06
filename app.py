@@ -11,9 +11,9 @@ line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
 # 單字型髒話：需精準比對（避免幹什麼被誤判）
-word_profanities = ["幹", "操"]
+word_profanities = ["幹", "操", "糙"]
 # 片語型髒話：可直接判斷是否出現在句中
-phrase_profanities = ["靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小", "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻", "破病"]
+phrase_profanities = ["靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小", "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻", "破病", "肏"]
 
 # 髒話次數記錄
 profanity_counter = {}
