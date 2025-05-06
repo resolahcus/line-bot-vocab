@@ -3,6 +3,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import InvalidSignatureError
 import os
+import re
 
 app = Flask(__name__)
 
@@ -10,7 +11,7 @@ line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
 # 髒話清單
-profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障", "靠杯", "幹你娘", "靠邀", "靠腰", "操", "操你媽"]
+profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障", "靠杯", "幹你娘", "靠邀", "靠腰", "操", "操你媽", "三小", "啥小", "傻逼", "低能", "低能兒", "破病", "破麻"]
 
 # 髒話次數記錄：{ user_id: {"name": 暱稱, "count": 次數} }
 profanity_counter = {}
@@ -53,7 +54,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-        # 處理排行榜指令
+    # 處理排行榜指令
     if text == "沒水準":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -64,15 +65,14 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-
     # 偵測髒話
-    if any(word in text for word in profanities):
+    if any(re.search(rf'\b{re.escape(word)}\b', text) for word in profanities):
         if user_id not in profanity_counter:
             profanity_counter[user_id] = {"name": display_name, "count": 1}
         else:
             profanity_counter[user_id]["count"] += 1
 
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text= f"{display_name} 不要說髒話！"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"{display_name} 不要說髒話！"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
