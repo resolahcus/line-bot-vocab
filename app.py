@@ -1,6 +1,6 @@
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent
 from linebot.exceptions import InvalidSignatureError
 import os
 import re
@@ -34,6 +34,34 @@ def callback():
 
     return 'OK'
 
+# 加入群組的處理器
+@handler.add(MemberJoinedEvent)
+def handle_member_joined(event):
+    group_id = event.source.group_id  # 獲取群組 ID
+    bot_ids = []  # 用來記錄所有加入群組的 bot ID
+
+    for member in event.joined.members:
+        try:
+            # 取得加入者的資料
+            profile = line_bot_api.get_group_member_profile(group_id, member.user_id)
+            if member.user_id != event.source.user_id:  # 排除自己
+                bot_ids.append({
+                    'user_id': member.user_id,
+                    'display_name': profile.display_name
+                })
+                print(f"[DEBUG] 加入群組的 bot: {profile.display_name} ({member.user_id})")
+        except Exception as e:
+            print(f"[DEBUG] 無法取得加入者資料: {member.user_id}, 錯誤: {e}")
+
+    # 記錄加入的 bot（這裡你可以選擇將資料存入資料庫或儲存成檔案等）
+    if bot_ids:
+        # 這裡你可以選擇記錄在某個地方，例如儲存到檔案或資料庫
+        for bot in bot_ids:
+            print(f"偵測到其他 bot 加入：{bot['display_name']} ({bot['user_id']})")
+    else:
+        print("[DEBUG] 沒有其他 bot 加入")
+
+# 處理文字訊息的事件
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
