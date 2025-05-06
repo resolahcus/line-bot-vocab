@@ -72,7 +72,7 @@ def handle_message(event):
         else:
             profanity_counter[user_id]["count"] += 1
 
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text= display_name, "不要說髒話！"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text= f"{display_name} 不要說髒話！"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
