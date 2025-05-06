@@ -10,7 +10,7 @@ line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
 # 髒話清單
-profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障"]
+profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障", "靠杯", "幹你娘", "靠邀", "靠腰", "操", "操你媽"]
 
 # 髒話次數記錄：{ user_id: {"name": 暱稱, "count": 次數} }
 profanity_counter = {}
@@ -44,14 +44,26 @@ def handle_message(event):
         display_name = "未知使用者"
 
     # 處理統計指令
-    if text == "!統計":
+    if text == "次數":
         if not profanity_counter:
             reply = "目前沒有紀錄"
         else:
             lines = [f"{data['name']}: {data['count']} 次" for data in profanity_counter.values()]
-            reply = "髒話使用統計：\n" + "\n".join(lines)
+            reply = "說髒話次數：\n" + "\n".join(lines)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
+
+        # 處理排行榜指令
+    if text == "沒水準":
+        if not profanity_counter:
+            reply = "目前沒有紀錄"
+        else:
+            # 找出最多次數者
+            top_user = max(profanity_counter.values(), key=lambda x: x["count"])
+            reply = f"目前最沒水準的是：{top_user['name']}（{top_user['count']} 次）"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
+
 
     # 偵測髒話
     if any(word in text for word in profanities):
@@ -60,7 +72,7 @@ def handle_message(event):
         else:
             profanity_counter[user_id]["count"] += 1
 
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="不要說髒話！"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text= display_name, "不要說髒話！"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
