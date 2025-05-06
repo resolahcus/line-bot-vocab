@@ -37,12 +37,18 @@ def handle_message(event):
     text = event.message.text.strip()
     user_id = event.source.user_id
 
-    # 嘗試取得暱稱
+    # 嘗試取得暱稱（支援群組、聊天室）
     try:
-        profile = line_bot_api.get_profile(user_id)
+        if event.source.type == "group":
+            profile = line_bot_api.get_group_member_profile(event.source.group_id, user_id)
+        elif event.source.type == "room":
+            profile = line_bot_api.get_room_member_profile(event.source.room_id, user_id)
+        else:
+            profile = line_bot_api.get_profile(user_id)
         display_name = profile.display_name
     except:
         display_name = "未知使用者"
+
 
     # 處理統計指令
     if text == "次數":
