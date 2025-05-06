@@ -11,7 +11,7 @@ line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
 # 髒話清單
-profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障", "靠杯", "幹你娘", "靠邀", "靠腰", "操", "操你媽", "三小", "啥小", "傻逼", "低能", "低能兒", "破病", "破麻"]
+profanities = ["幹", "靠北", "白癡", "你媽", "他媽", "智障", "靠杯", "幹你娘", "靠邀", "靠腰", "操", "操你媽", "三小", "啥小", "傻逼", "低能", "低能兒", "破病", "破麻", "去你的", "去你媽"]
 
 # 髒話次數記錄：{ user_id: {"name": 暱稱, "count": 次數} }
 profanity_counter = {}
