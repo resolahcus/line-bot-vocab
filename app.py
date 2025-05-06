@@ -38,9 +38,8 @@ def callback():
 def handle_message(event):
     text = event.message.text.strip()
     user_id = getattr(event.source, 'user_id', None)
-if not user_id:
-    return  # 沒 user_id 就跳過處理
-
+    if not user_id:
+        return  # 沒 user_id 就跳過處理
 
     # 嘗試取得使用者名稱
     try:
