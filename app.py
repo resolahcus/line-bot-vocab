@@ -122,18 +122,6 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 洗白詞彙
-    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
-    if any(word in text for word in forgive_words):
-        response_list = [
-            f"{display_name} 這次就原諒你吧 ",
-            f"{display_name} 好好重新做人！",
-            f"{display_name} 好啦，原諒你一次"
-        ]
-        reply = random.choice(response_list)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-        return
-
     # 使用者輸入「洗白」指令
     if text == "洗白":
         cleansing_missions = [
@@ -155,8 +143,8 @@ def handle_message(event):
             TextSendMessage(text=f"{display_name}，你的洗白任務來了：\n{selected_mission}\n完成後我會幫你減少一次髒話紀錄喔 ")
         )
         return
-
-     # 如果有洗白任務，檢查是否完成
+        
+             # 如果有洗白任務，檢查是否完成
     if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
         expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
         if expected_phrase in text:
@@ -167,6 +155,19 @@ def handle_message(event):
                 TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
             )
             return
+
+
+    # 洗白詞彙
+    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+    if any(word in text for word in forgive_words):
+        response_list = [
+            f"{display_name} 這次就原諒你吧 ",
+            f"{display_name} 好好重新做人！",
+            f"{display_name} 好啦，原諒你一次"
+        ]
+        reply = random.choice(response_list)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
 
     # 偵測髒話
     matched = False
