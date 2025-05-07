@@ -4,6 +4,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, MemberJoi
 from linebot.exceptions import InvalidSignatureError
 import os
 import re
+import random
 
 app = Flask(__name__)
 
@@ -13,12 +14,16 @@ handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 # 單字型髒話：需精準比對（避免幹什麼被誤判）
 word_profanities = ["幹", "操", "糙"]
 # 片語型髒話：可直接判斷是否出現在句中
-phrase_profanities = ["靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小", "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻", "破病", "肏", "狗幹","去死","耖","Fuck","fuck","Shit","shit"]
+phrase_profanities = [
+    "靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小",
+    "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻",
+    "破病", "肏", "狗幹", "去死", "耖", "Fuck", "fuck", "Shit", "shit"
+]
 
 # 髒話次數記錄
 profanity_counter = {}
 
-# 籤文資料，這裡列出範例，實際上你可以根據需求自定義更多籤文內容
+# 籤文資料
 lottery_results = {
     "上上籤": "今天事事順利，無論做什麼都會有好結果，值得一試。",
     "上籤": "運氣較好，今天可以勇敢嘗試，但也要保持謹慎。",
@@ -26,14 +31,12 @@ lottery_results = {
     "下籤": "今天會有一些挑戰，但不必過於擔心，保持耐心。",
     "下下籤": "今天的運勢較差，建議保持低調，謹慎行事。"
 }
-
-# 每個籤的權重，數字越大，該籤出現的機率越高
 lottery_weights = {
-    "上上籤": 1,  
+    "上上籤": 1,
     "上籤": 2,
-    "中籤": 3,    
+    "中籤": 3,
     "下籤": 2,
-    "下下籤": 1   
+    "下下籤": 1
 }
 
 @app.route("/")
@@ -55,14 +58,13 @@ def callback():
 # 加入群組的處理器
 @handler.add(MemberJoinedEvent)
 def handle_member_joined(event):
-    group_id = event.source.group_id  # 獲取群組 ID
-    bot_ids = []  # 用來記錄所有加入群組的 bot ID
+    group_id = event.source.group_id
+    bot_ids = []
 
     for member in event.joined.members:
         try:
-            # 取得加入者的資料
             profile = line_bot_api.get_group_member_profile(group_id, member.user_id)
-            if member.user_id != event.source.user_id:  # 排除自己
+            if member.user_id != event.source.user_id:
                 bot_ids.append({
                     'user_id': member.user_id,
                     'display_name': profile.display_name
@@ -71,9 +73,7 @@ def handle_member_joined(event):
         except Exception as e:
             print(f"[DEBUG] 無法取得加入者資料: {member.user_id}, 錯誤: {e}")
 
-    # 記錄加入的 bot（這裡你可以選擇將資料存入資料庫或儲存成檔案等）
     if bot_ids:
-        # 這裡你可以選擇記錄在某個地方，例如儲存到檔案或資料庫
         for bot in bot_ids:
             print(f"偵測到其他 bot 加入：{bot['display_name']} ({bot['user_id']})")
     else:
@@ -85,9 +85,8 @@ def handle_message(event):
     text = event.message.text.strip()
     user_id = getattr(event.source, 'user_id', None)
     if not user_id:
-        return  # 沒 user_id 就跳過處理
+        return
 
-    # 嘗試取得使用者名稱
     try:
         if event.source.type == "group":
             profile = line_bot_api.get_group_member_profile(event.source.group_id, user_id)
@@ -99,7 +98,7 @@ def handle_message(event):
     except:
         display_name = "未知使用者"
 
-    # 指令處理：統計
+    # 指令：統計
     if text == "次數":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -109,7 +108,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 指令處理：排行榜
+    # 指令：排行榜
     if text == "沒水準":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -119,29 +118,25 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 洗白詞彙（可自行增減）
-forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+    # 洗白詞彙
+    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+    if any(word in text for word in forgive_words):
+        response_list = [
+            f"{display_name} 這次就原諒你吧 ",
+            f"{display_name} 好好重新做人！",
+            f"{display_name} 好啦，原諒你一次"
+        ]
+        reply = random.choice(response_list)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
 
-# 加在偵測髒話前面
-if any(word in text for word in forgive_words):
-    response_list = [
-        f"{display_name} 這次就原諒你吧 ",
-        f"{display_name} 好好重新做人！",
-        f"{display_name} 好啦，原諒你一次"
-    ]
-    import random
-    reply = random.choice(response_list)
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-    return
-
-    # 偵測髒話：單字型（精確匹配）
+    # 偵測髒話
     matched = False
     for word in word_profanities:
         if re.search(rf'\b{re.escape(word)}\b', text):
             matched = True
             break
 
-    # 偵測髒話：片語型（模糊出現）
     if not matched:
         for phrase in phrase_profanities:
             if phrase in text:
@@ -158,24 +153,21 @@ if any(word in text for word in forgive_words):
             event.reply_token,
             TextSendMessage(text=f"{display_name} 不要說髒話！")
         )
+        return
 
     # 抽籤功能
     if "抽籤" in text:
-        # 根據權重進行抽籤
         result = random.choices(
-            list(lottery_results.keys()),    # 籤名
-            weights=list(lottery_weights.values()),  # 每個籤的權重
-            k=1  # 只抽一個
+            list(lottery_results.keys()),
+            weights=list(lottery_weights.values()),
+            k=1
         )[0]
-        
         response_message = lottery_results[result]
-
-        # 回覆抽籤結果
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"你的籤是：{result}\n{response_message}")
         )
         return
-        
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
