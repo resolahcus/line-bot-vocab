@@ -124,20 +124,24 @@ def handle_message(event):
             return
 
 
-    # 原諒詞處理
+        # 原諒詞處理
     forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
     if any(word in text for word in forgive_words):
-        if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
-            response_list = [
-                f"{display_name} 這次就原諒你吧 ",
-                f"{display_name} 好好重新做人！",
-                f"{display_name} 好啦，原諒你一次"
-            ]
-            reply = random.choice(response_list)
+        if user_id in profanity_counter:
+            if "mission" in profanity_counter[user_id]:
+                mission_hint = profanity_counter[user_id]["mission"]
+                reply = f"{display_name}，說得好，但你還有任務喔：\n{mission_hint}\n完成後我才能幫你減少次數！"
+            else:
+                response_list = [
+                    f"{display_name} 這次就原諒你吧 ",
+                    f"{display_name} 好好重新做人！",
+                    f"{display_name} 好啦，原諒你一次"
+                ]
+                reply = random.choice(response_list)
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
-
-    # 查詢次數
+            
+        # 查詢次數
     if text == "次數":
         if not profanity_counter:
             reply = "目前沒有紀錄"
