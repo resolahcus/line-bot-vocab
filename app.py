@@ -103,18 +103,26 @@ def handle_message(event):
 
     # 檢查是否完成洗白任務
     if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
-        expected_phrase = profanity_counter[user_id]["mission"]
-        expected_phrase = expected_phrase.replace("請輸入", "").replace("就能洗白！", "")
-        expected_phrase = expected_phrase.strip("：『』 ").strip()
+        mission_text = profanity_counter[user_id]["mission"]
 
-        if expected_phrase in text:
-            profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
-            del profanity_counter[user_id]["mission"]
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
-            )
-            return
+    # 優先提取『引號』或「引號」內的內容
+    match = re.search(r"[「『](.*?)[」』]", mission_text)
+    if match:
+        expected_phrase = match.group(1)
+    else:
+        # 若沒引號，直接移除「請輸入」等提示詞
+        expected_phrase = re.sub(r"請輸入|就能洗白！|完成後.*", "", mission_text).strip()
+    
+    if expected_phrase and expected_phrase in text:
+    
+            if expected_phrase in text:
+                profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
+                del profanity_counter[user_id]["mission"]
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
+                )
+                return
 
     # 原諒詞處理
     forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
