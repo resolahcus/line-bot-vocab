@@ -11,19 +11,20 @@ app = Flask(__name__)
 line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
-# 單字型髒話：需精準比對（避免幹什麼被誤判）
+# 單字型髒話（需精準比對）
 word_profanities = ["幹", "操", "糙"]
-# 片語型髒話：可直接判斷是否出現在句中
+
+# 片語型髒話（只要出現就算）
 phrase_profanities = [
     "靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小",
     "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻",
     "破病", "肏", "狗幹", "去死", "耖", "Fuck", "fuck", "Shit", "shit"
 ]
 
-# 髒話次數記錄
+# 髒話次數紀錄
 profanity_counter = {}
 
-# 籤文資料
+# 籤文內容
 lottery_results = {
     "人品大爆發": "太神啦，做什麼事都會成功，大膽嘗試。",
     "上上籤": "今天事事順利，無論做什麼都會有好結果，值得一試。",
@@ -40,7 +41,7 @@ lottery_weights = {
     "中籤": 3,
     "下籤": 2,
     "下下籤": 1,
-    "世紀大衰鬼" : 0.5
+    "世紀大衰鬼": 0.5
 }
 
 @app.route("/")
@@ -73,7 +74,6 @@ def handle_member_joined(event):
                     'user_id': member.user_id,
                     'display_name': profile.display_name
                 })
-                print(f"[DEBUG] 加入群組的 bot: {profile.display_name} ({member.user_id})")
         except Exception as e:
             print(f"[DEBUG] 無法取得加入者資料: {member.user_id}, 錯誤: {e}")
 
@@ -101,34 +101,35 @@ def handle_message(event):
     except:
         display_name = "未知使用者"
 
-    # 如果有洗白任務，檢查是否完成
+    # 檢查是否完成洗白任務
     if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
-        expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
+        expected_phrase = profanity_counter[user_id]["mission"]
+        expected_phrase = expected_phrase.replace("請輸入", "").replace("就能洗白！", "")
+        expected_phrase = expected_phrase.strip("：『』 ").strip()
+
         if expected_phrase in text:
-            # 用戶完成洗白任務，減少髒話次數
             profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
-            del profanity_counter[user_id]["mission"]  # 任務完成就清掉
-             line_bot_api.reply_message(
+            del profanity_counter[user_id]["mission"]
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
-             )
+            )
             return
 
-    # 如果不是洗白任務，才檢查原諒詞彙
+    # 原諒詞處理
     forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
     if any(word in text for word in forgive_words):
-    # 檢查是否有洗白任務未完成
-        if user_id not in profanity_counter or "mission" in profanity_counter[user_id]:
+        if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
             response_list = [
                 f"{display_name} 這次就原諒你吧 ",
                 f"{display_name} 好好重新做人！",
                 f"{display_name} 好啦，原諒你一次"
             ]
-        reply = random.choice(response_list)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-        return
-        
-    # 指令：統計
+            reply = random.choice(response_list)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+            return
+
+    # 查詢次數
     if text == "次數":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -138,7 +139,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 指令：排行榜
+    # 排行榜
     if text == "沒水準":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -148,7 +149,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 使用者輸入「洗白」指令
+    # 洗白任務
     if text == "洗白":
         cleansing_missions = [
             "請輸入『我愛這個群組，我錯了』",
@@ -158,7 +159,7 @@ def handle_message(event):
             "輸入『我不再說壞話了』就能洗白！"
         ]
         selected_mission = random.choice(cleansing_missions)
-        # 把用戶目前任務存下來
+
         if user_id not in profanity_counter:
             profanity_counter[user_id] = {"name": display_name, "count": 0, "mission": selected_mission}
         else:
@@ -169,19 +170,10 @@ def handle_message(event):
             TextSendMessage(text=f"{display_name}，你的洗白任務來了：\n{selected_mission}\n完成後我會幫你減少一次髒話紀錄喔 ")
         )
         return
-        
-    # 偵測髒話
-    matched = False
-    for word in word_profanities:
-        if re.search(rf'\b{re.escape(word)}\b', text):
-            matched = True
-            break
 
-    if not matched:
-        for phrase in phrase_profanities:
-            if phrase in text:
-                matched = True
-                break
+    # 髒話偵測
+    matched = any(re.search(rf'\b{re.escape(word)}\b', text) for word in word_profanities) or \
+              any(phrase in text for phrase in phrase_profanities)
 
     if matched:
         if user_id not in profanity_counter:
@@ -194,7 +186,6 @@ def handle_message(event):
             TextSendMessage(text=f"{display_name} 不要說髒話！")
         )
         return
-
 
     # 抽籤功能
     if "抽籤" in text:
