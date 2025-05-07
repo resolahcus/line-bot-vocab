@@ -25,18 +25,22 @@ profanity_counter = {}
 
 # 籤文資料
 lottery_results = {
+    "人品大爆發": "太神啦，做什麼事都會成功，大膽嘗試。",
     "上上籤": "今天事事順利，無論做什麼都會有好結果，值得一試。",
     "上籤": "運氣較好，今天可以勇敢嘗試，但也要保持謹慎。",
     "中籤": "今天的運勢一般，不過依然能有小小收穫，保持努力。",
     "下籤": "今天會有一些挑戰，但不必過於擔心，保持耐心。",
-    "下下籤": "今天的運勢較差，建議保持低調，謹慎行事。"
+    "下下籤": "今天的運勢較差，建議保持低調，謹慎行事。",
+    "世紀大衰鬼": "今天還是別出門了，好好待在家裡窩著吧。"
 }
 lottery_weights = {
+    "人品大爆發": 0.5,
     "上上籤": 1,
     "上籤": 2,
     "中籤": 3,
     "下籤": 2,
-    "下下籤": 1
+    "下下籤": 1,
+    "世紀大衰鬼" : 0.5
 }
 
 @app.route("/")
@@ -129,6 +133,40 @@ def handle_message(event):
         reply = random.choice(response_list)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
+
+    # 使用者輸入「洗白」指令
+    if text == "洗白":
+        cleansing_missions = [
+            "請輸入『我愛這個群組，我錯了』",
+            "誠心三連發：對不起對不起對不起",
+            "請輸入『請原諒我，我會做個乾淨的人』",
+            "請說出悔意：『髒話無益，口出善言』",
+            "輸入『我不再說壞話了』就能洗白！"
+        ]
+        selected_mission = random.choice(cleansing_missions)
+        # 把用戶目前任務存下來
+        if user_id not in profanity_counter:
+            profanity_counter[user_id] = {"name": display_name, "count": 0, "mission": selected_mission}
+        else:
+            profanity_counter[user_id]["mission"] = selected_mission
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"{display_name}，你的洗白任務來了：\n{selected_mission}\n完成後我會幫你減少一次髒話紀錄喔 🧼")
+        )
+        return
+
+     # 如果有洗白任務，檢查是否完成
+    if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
+        expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
+        if expected_phrase in text:
+            profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
+            del profanity_counter[user_id]["mission"]  # 任務完成就清掉
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
+            )
+            return
 
     # 偵測髒話
     matched = False
