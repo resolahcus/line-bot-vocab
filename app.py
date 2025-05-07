@@ -13,10 +13,28 @@ handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 # 單字型髒話：需精準比對（避免幹什麼被誤判）
 word_profanities = ["幹", "操", "糙"]
 # 片語型髒話：可直接判斷是否出現在句中
-phrase_profanities = ["靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小", "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻", "破病", "肏", "狗幹","去死"]
+phrase_profanities = ["靠北", "靠杯", "靠邀", "靠腰", "幹你娘", "你媽", "他媽", "操你媽", "三小", "啥小", "去你的", "去你媽", "擊敗", "雞掰", "智障", "白癡", "傻逼", "低能", "低能兒", "破麻", "破病", "肏", "狗幹","去死","耖","Fuck","fuck","Shit","shit"]
 
 # 髒話次數記錄
 profanity_counter = {}
+
+# 籤文資料，這裡列出範例，實際上你可以根據需求自定義更多籤文內容
+lottery_results = {
+    "上上籤": "今天事事順利，無論做什麼都會有好結果，值得一試。",
+    "上籤": "運氣較好，今天可以勇敢嘗試，但也要保持謹慎。",
+    "中籤": "今天的運勢一般，不過依然能有小小收穫，保持努力。",
+    "下籤": "今天會有一些挑戰，但不必過於擔心，保持耐心。",
+    "下下籤": "今天的運勢較差，建議保持低調，謹慎行事。"
+}
+
+# 每個籤的權重，數字越大，該籤出現的機率越高
+lottery_weights = {
+    "上上籤": 1,  
+    "上籤": 2,
+    "中籤": 3,    
+    "下籤": 2,
+    "下下籤": 1   
+}
 
 @app.route("/")
 def index():
@@ -101,6 +119,21 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
+    # 洗白詞彙（可自行增減）
+forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+
+# 加在偵測髒話前面
+if any(word in text for word in forgive_words):
+    response_list = [
+        f"{display_name} 這次就原諒你吧 ",
+        f"{display_name} 好好重新做人！",
+        f"{display_name} 好啦，原諒你一次"
+    ]
+    import random
+    reply = random.choice(response_list)
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    return
+
     # 偵測髒話：單字型（精確匹配）
     matched = False
     for word in word_profanities:
@@ -126,5 +159,23 @@ def handle_message(event):
             TextSendMessage(text=f"{display_name} 不要說髒話！")
         )
 
+    # 抽籤功能
+    if "抽籤" in text:
+        # 根據權重進行抽籤
+        result = random.choices(
+            list(lottery_results.keys()),    # 籤名
+            weights=list(lottery_weights.values()),  # 每個籤的權重
+            k=1  # 只抽一個
+        )[0]
+        
+        response_message = lottery_results[result]
+
+        # 回覆抽籤結果
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"你的籤是：{result}\n{response_message}")
+        )
+        return
+        
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
