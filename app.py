@@ -44,6 +44,28 @@ lottery_weights = {
     "世紀大衰鬼": 0.5
 }
 
+# 成就系統定義
+achievements_definitions = [
+    ("初犯之星", lambda data: data.get("count", 0) >= 1),
+    ("素質低落", lambda data: data.get("count", 0) >= 5),
+    ("懺悔使者", lambda data: data.get("forgive_count", 0) >= 3),
+    ("洗刷冤屈", lambda data: data.get("wash_count", 0) >= 1),
+    ("善言守護者", lambda data: data.get("wash_count", 0) >= 3),
+]
+
+def check_achievements(user_id):
+    user_data = profanity_counter[user_id]
+    unlocked = []
+    if "achievements" not in user_data:
+        user_data["achievements"] = set()
+
+    for name, condition in achievements_definitions:
+        if name not in user_data["achievements"] and condition(user_data):
+            user_data["achievements"].add(name)
+            unlocked.append(name)
+
+    return unlocked
+
 @app.route("/")
 def index():
     return "Hello, world!"
@@ -60,7 +82,6 @@ def callback():
 
     return 'OK'
 
-# 加入群組的處理器
 @handler.add(MemberJoinedEvent)
 def handle_member_joined(event):
     group_id = event.source.group_id
@@ -101,47 +122,55 @@ def handle_message(event):
     except:
         display_name = "未知使用者"
 
-    # 檢查是否完成洗白任務
-    if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
+    if user_id not in profanity_counter:
+        profanity_counter[user_id] = {"name": display_name, "count": 0, "wash_count": 0, "forgive_count": 0, "achievements": set()}
+
+    if text in ["稱號", "成就"]:
+        achs = profanity_counter[user_id].get("achievements", set())
+        if not achs:
+            reply = f"{display_name} 還沒有獲得任何稱號喔！"
+        else:
+            reply = f"{display_name} 目前擁有稱號：\n" + "\n".join(f"🏅 {a}" for a in achs)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
+
+    if "mission" in profanity_counter[user_id]:
         mission_text = profanity_counter[user_id]["mission"]
-    
-        # 優先提取『引號』或「引號」內的內容
         match = re.search(r"[「『](.*?)[」』]", mission_text)
         if match:
             expected_phrase = match.group(1)
         else:
-            # 若沒引號，直接移除提示詞
             expected_phrase = re.sub(r"請輸入|就能洗白！|完成後.*", "", mission_text).strip()
-    
-        # 比對使用者輸入
+
         if expected_phrase and expected_phrase in text:
             profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
-            del profanity_counter[user_id]["mission"]  # 任務完成就清掉
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
-            )
-            return
-
-
-        # 原諒詞處理
-    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
-    if any(word in text for word in forgive_words):
-        if user_id in profanity_counter:
-            if "mission" in profanity_counter[user_id]:
-                mission_hint = profanity_counter[user_id]["mission"]
-                reply = f"{display_name}，說得好，但你還有任務喔：\n{mission_hint}\n完成後我才能幫你減少次數！"
-            else:
-                response_list = [
-                    f"{display_name} 這次就原諒你吧 ",
-                    f"{display_name} 好好重新做人！",
-                    f"{display_name} 好啦，原諒你一次"
-                ]
-                reply = random.choice(response_list)
+            profanity_counter[user_id]["wash_count"] = profanity_counter[user_id].get("wash_count", 0) + 1
+            del profanity_counter[user_id]["mission"]
+            reply = f"{display_name} 洗白成功！髒話次數已減一"
+            unlocked = check_achievements(user_id)
+            if unlocked:
+                reply += "\n🎉 解鎖成就：" + "、".join(unlocked)
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
-            
-        # 查詢次數
+        else:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="你還沒完成洗白任務喔～快照著做！"))
+            return
+
+    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+    if any(word in text for word in forgive_words):
+        profanity_counter[user_id]["forgive_count"] = profanity_counter[user_id].get("forgive_count", 0) + 1
+        response_list = [
+            f"{display_name} 這次就原諒你吧 ",
+            f"{display_name} 好好重新做人！",
+            f"{display_name} 好啦，原諒你一次"
+        ]
+        reply = random.choice(response_list)
+        unlocked = check_achievements(user_id)
+        if unlocked:
+            reply += "\n🎉 解鎖成就：" + "、".join(unlocked)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
+
     if text == "次數":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -151,7 +180,6 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 排行榜
     if text == "沒水準":
         if not profanity_counter:
             reply = "目前沒有紀錄"
@@ -161,45 +189,34 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 洗白任務
     if text == "洗白":
         cleansing_missions = [
             "請輸入『我愛這個群組，我錯了』",
-            "誠心三連發：『對不起對不起對不起』",
+            "誠心三連發：對不起對不起對不起",
             "請輸入『請原諒我，我會做個乾淨的人』",
             "請說出悔意：『髒話無益，口出善言』",
             "輸入『我不再說壞話了』就能洗白！"
         ]
         selected_mission = random.choice(cleansing_missions)
-
-        if user_id not in profanity_counter:
-            profanity_counter[user_id] = {"name": display_name, "count": 0, "mission": selected_mission}
-        else:
-            profanity_counter[user_id]["mission"] = selected_mission
-
+        profanity_counter[user_id]["mission"] = selected_mission
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"{display_name}，你的洗白任務來了：\n{selected_mission}\n完成後我會幫你減少一次髒話紀錄喔 ")
         )
         return
 
-    # 髒話偵測
     matched = any(re.search(rf'\b{re.escape(word)}\b', text) for word in word_profanities) or \
               any(phrase in text for phrase in phrase_profanities)
 
     if matched:
-        if user_id not in profanity_counter:
-            profanity_counter[user_id] = {"name": display_name, "count": 1}
-        else:
-            profanity_counter[user_id]["count"] += 1
-
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"{display_name} 不要說髒話！")
-        )
+        profanity_counter[user_id]["count"] += 1
+        reply = f"{display_name} 不要說髒話！"
+        unlocked = check_achievements(user_id)
+        if unlocked:
+            reply += "\n🎉 解鎖成就：" + "、".join(unlocked)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 抽籤功能
     if "抽籤" in text:
         result = random.choices(
             list(lottery_results.keys()),
