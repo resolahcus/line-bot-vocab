@@ -103,30 +103,31 @@ def handle_message(event):
 
     # 如果有洗白任務，檢查是否完成
     if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
-        expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
-        if expected_phrase in text:
-            # 用戶完成洗白任務，減少髒話次數
-            profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
-            del profanity_counter[user_id]["mission"]  # 任務完成就清掉
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
-            )
-            return
-
-    # 洗白詞彙（如果已經有任務，則不再觸發這些詞彙的回覆）
-    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
-    if any(word in text for word in forgive_words):
-        if user_id not in profanity_counter or "mission" in profanity_counter[user_id]:
-            response_list = [
-                f"{display_name} 這次就原諒你吧 ",
-                f"{display_name} 好好重新做人！",
-                f"{display_name} 好啦，原諒你一次"
-            ]
-            reply = random.choice(response_list)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
+    if expected_phrase in text:
+        # 用戶完成洗白任務，減少髒話次數
+        profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
+        del profanity_counter[user_id]["mission"]  # 任務完成就清掉
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"{display_name} 洗白成功！髒話次數已減一 ")
+        )
         return
 
+    # 如果不是洗白任務，才檢查原諒詞彙
+    forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
+    if any(word in text for word in forgive_words):
+    # 檢查是否有洗白任務未完成
+    if user_id not in profanity_counter or "mission" in profanity_counter[user_id]:
+        response_list = [
+            f"{display_name} 這次就原諒你吧 ",
+            f"{display_name} 好好重新做人！",
+            f"{display_name} 好啦，原諒你一次"
+        ]
+        reply = random.choice(response_list)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return
+        
     # 指令：統計
     if text == "次數":
         if not profanity_counter:
