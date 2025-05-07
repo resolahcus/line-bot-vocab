@@ -114,16 +114,17 @@ def handle_message(event):
             )
             return
 
-    # 洗白詞彙
+    # 洗白詞彙（如果已經有任務，則不再觸發這些詞彙的回覆）
     forgive_words = ["我錯了", "抱歉", "對不起", "原諒我"]
     if any(word in text for word in forgive_words):
-        response_list = [
-            f"{display_name} 這次就原諒你吧 ",
-            f"{display_name} 好好重新做人！",
-            f"{display_name} 好啦，原諒你一次"
-        ]
-        reply = random.choice(response_list)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        if user_id not in profanity_counter or "mission" in profanity_counter[user_id]:
+            response_list = [
+                f"{display_name} 這次就原諒你吧 ",
+                f"{display_name} 好好重新做人！",
+                f"{display_name} 好啦，原諒你一次"
+            ]
+            reply = random.choice(response_list)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
     # 指令：統計
