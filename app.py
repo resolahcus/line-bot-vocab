@@ -103,7 +103,7 @@ def handle_message(event):
 
     # 如果有洗白任務，檢查是否完成
     if user_id in profanity_counter and "mission" in profanity_counter[user_id]:
-    expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
+        expected_phrase = profanity_counter[user_id]["mission"].replace("請輸入", "").replace("就能洗白！", "").strip("：").strip(" ")
     if expected_phrase in text:
         # 用戶完成洗白任務，減少髒話次數
         profanity_counter[user_id]["count"] = max(0, profanity_counter[user_id]["count"] - 1)
