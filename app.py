@@ -230,5 +230,42 @@ def handle_message(event):
         )
         return
 
+    # 猜數字：開始遊戲
+    if text == "猜數字":
+        digits = random.sample("0123456789", 4)
+        answer = ''.join(digits)
+        bulls_and_cows_game[user_id] = {
+            "answer": answer,
+            "tries": 0
+        }
+        reply_text = "遊戲開始！請輸入 4 位數字（不重複）來猜猜看！"
+    
+    # 放棄遊戲
+    elif text in ["放棄", "結束遊戲"] and user_id in bulls_and_cows_game:
+        answer = bulls_and_cows_game[user_id]["answer"]
+        reply_text = f"遊戲結束！答案是 {answer}"
+        del bulls_and_cows_game[user_id]
+    
+    # 進行遊戲中
+    elif user_id in bulls_and_cows_game:
+        # 僅處理 4 位不重複數字，其它不回應
+        if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
+            game = bulls_and_cows_game[user_id]
+            answer = game["answer"]
+            game["tries"] += 1
+            guess = text
+            A = sum(a == b for a, b in zip(answer, guess))
+            B = sum(min(guess.count(d), answer.count(d)) for d in set(guess)) - A
+    
+            if A == 4:
+                reply_text = f"恭喜你猜對了！答案是 {answer}，你共猜了 {game['tries']} 次！"
+                del bulls_and_cows_game[user_id]
+            else:
+                reply_text = f"{A}A{B}B，繼續猜！"
+        else:
+            return  # 無效輸入，不回應
+
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
