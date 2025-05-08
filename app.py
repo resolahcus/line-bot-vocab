@@ -217,7 +217,7 @@ def handle_message(event):
         )
         return
 
-    # 猜數字：開始遊戲
+ # 猜數字：開始遊戲
     if text == "猜數字":
         if group_key in bulls_and_cows_game:
             reply_text = "目前已有猜數字遊戲進行中，請先完成或輸入『結束遊戲』結束現有遊戲。"
@@ -237,7 +237,7 @@ def handle_message(event):
         del bulls_and_cows_game[group_key]
     
     # 進行遊戲中
-   elif group_key in bulls_and_cows_game:
+    elif group_key in bulls_and_cows_game:
         if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
             game = bulls_and_cows_game[group_key]
             answer = game["answer"]
@@ -253,10 +253,6 @@ def handle_message(event):
                 reply_text = f"{A}A{B}B，繼續猜！"
     else:
         return  # 無效輸入，不回應
-        
-    if 'reply_text' in locals():
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
-
 
 
 if __name__ == "__main__":
