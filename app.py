@@ -238,19 +238,19 @@ def handle_message(event):
     
     # 進行遊戲中
    elif group_key in bulls_and_cows_game:
-    if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
-        game = bulls_and_cows_game[group_key]
-        answer = game["answer"]
-        game["tries"] += 1
-        guess = text
-        A = sum(a == b for a, b in zip(answer, guess))
-        B = sum(min(guess.count(d), answer.count(d)) for d in set(guess)) - A
+        if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
+            game = bulls_and_cows_game[group_key]
+            answer = game["answer"]
+            game["tries"] += 1
+            guess = text
+            A = sum(a == b for a, b in zip(answer, guess))
+            B = sum(min(guess.count(d), answer.count(d)) for d in set(guess)) - A
 
-        if A == 4:
-            reply_text = f"{display_name} 猜對了！答案是 {answer}，共猜了 {game['tries']} 次！"
-            del bulls_and_cows_game[group_key]
-        else:
-            reply_text = f"{A}A{B}B，繼續猜！"
+            if A == 4:
+                reply_text = f"{display_name} 猜對了！答案是 {answer}，共猜了 {game['tries']} 次！"
+                del bulls_and_cows_game[group_key]
+            else:
+                reply_text = f"{A}A{B}B，繼續猜！"
     else:
         return  # 無效輸入，不回應
         
