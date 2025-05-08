@@ -87,24 +87,7 @@ def callback():
 @handler.add(MemberJoinedEvent)
 def handle_member_joined(event):
     group_id = event.source.group_id
-    bot_ids = []
 
-    for member in event.joined.members:
-        try:
-            profile = line_bot_api.get_group_member_profile(group_id, member.user_id)
-            if member.user_id != event.source.user_id:
-                bot_ids.append({
-                    'user_id': member.user_id,
-                    'display_name': profile.display_name
-                })
-        except Exception as e:
-            print(f"[DEBUG] 無法取得加入者資料: {member.user_id}, 錯誤: {e}")
-
-    if bot_ids:
-        for bot in bot_ids:
-            print(f"偵測到其他 bot 加入：{bot['display_name']} ({bot['user_id']})")
-    else:
-        print("[DEBUG] 沒有其他 bot 加入")
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -112,7 +95,9 @@ def handle_message(event):
     user_id = getattr(event.source, 'user_id', None)
     if not user_id:
         return
-
+        
+    group_key = getattr(event.source, 'group_id', None) or getattr(event.source, 'room_id', None) or user_id
+    
     try:
         if event.source.type == "group":
             profile = line_bot_api.get_group_member_profile(event.source.group_id, user_id)
@@ -234,38 +219,41 @@ def handle_message(event):
 
     # 猜數字：開始遊戲
     if text == "猜數字":
-        digits = random.sample("0123456789", 4)
-        answer = ''.join(digits)
-        bulls_and_cows_game[user_id] = {
-            "answer": answer,
-            "tries": 0
-        }
-        reply_text = "遊戲開始！請輸入 4 位數字（不重複）來猜猜看！"
+        if group_key in bulls_and_cows_game:
+            reply_text = "目前已有猜數字遊戲進行中，請先完成或輸入『結束遊戲』結束現有遊戲。"
+        else:
+            digits = random.sample("0123456789", 4)
+            answer = ''.join(digits)
+            bulls_and_cows_game[group_key] = {
+                "answer": answer,
+                "tries": 0
+            }
+            reply_text = f"{display_name} 開始了一場猜數字遊戲！\n請輸入 4 位不重複的數字來猜猜看！"
     
     # 放棄遊戲
-    elif text in ["放棄", "結束遊戲"] and user_id in bulls_and_cows_game:
-        answer = bulls_and_cows_game[user_id]["answer"]
+    elif text in ["放棄", "結束遊戲"] and group_key in bulls_and_cows_game:
+        answer = bulls_and_cows_game[group_key]["answer"]
         reply_text = f"遊戲結束！答案是 {answer}"
-        del bulls_and_cows_game[user_id]
+        del bulls_and_cows_game[group_key]
     
     # 進行遊戲中
-    elif user_id in bulls_and_cows_game:
-        # 僅處理 4 位不重複數字，其它不回應
-        if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
-            game = bulls_and_cows_game[user_id]
-            answer = game["answer"]
-            game["tries"] += 1
-            guess = text
-            A = sum(a == b for a, b in zip(answer, guess))
-            B = sum(min(guess.count(d), answer.count(d)) for d in set(guess)) - A
-    
-            if A == 4:
-                reply_text = f"恭喜你猜對了！答案是 {answer}，你共猜了 {game['tries']} 次！"
-                del bulls_and_cows_game[user_id]
-            else:
-                reply_text = f"{A}A{B}B，繼續猜！"
+   elif group_key in bulls_and_cows_game:
+    if re.fullmatch(r"\d{4}", text) and len(set(text)) == 4:
+        game = bulls_and_cows_game[group_key]
+        answer = game["answer"]
+        game["tries"] += 1
+        guess = text
+        A = sum(a == b for a, b in zip(answer, guess))
+        B = sum(min(guess.count(d), answer.count(d)) for d in set(guess)) - A
+
+        if A == 4:
+            reply_text = f"{display_name} 猜對了！答案是 {answer}，共猜了 {game['tries']} 次！"
+            del bulls_and_cows_game[group_key]
         else:
-            return  # 無效輸入，不回應
+            reply_text = f"{A}A{B}B，繼續猜！"
+    else:
+        return  # 無效輸入，不回應
+        
     if 'reply_text' in locals():
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
