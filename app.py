@@ -253,7 +253,9 @@ def handle_message(event):
                 reply_text = f"{A}A{B}B，繼續猜！"
     else:
         return  # 無效輸入，不回應
-
+        
+    if 'reply_text' in locals():
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
