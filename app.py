@@ -48,7 +48,6 @@ lottery_weights = {
 
 # 成就系統定義
 achievements_definitions = [
-    ("初犯之星", lambda data: data.get("count", 0) >= 1),
     ("素質低落", lambda data: data.get("count", 0) >= 5),
     ("懺悔使者", lambda data: data.get("forgive_count", 0) >= 3),
     ("洗刷冤屈", lambda data: data.get("wash_count", 0) >= 1),
