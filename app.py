@@ -234,7 +234,7 @@ def handle_message(event):
     elif text in ["放棄", "結束遊戲"] and group_key in bulls_and_cows_game:
         game = bulls_and_cows_game[group_key]
         if game.get("starter") != user_id:
-            reply_text = f"只有遊戲發起者（{game['starter']}）才能結束這場遊戲喔！"
+            reply_text = f"只有遊戲發起者才能結束這場遊戲！"
         else:
             answer = game["answer"]
             reply_text = f"遊戲結束！答案是 {answer}"
